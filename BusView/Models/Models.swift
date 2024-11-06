@@ -98,7 +98,7 @@ struct Vehicle: Codable, Sendable {
     let type, brand, colour: String
     let isBackupVehicle: Bool
     let ownerID: Int
-    let gps, secondaryGps: Gps
+    let gps, secondaryGps: Gps?
 
     enum CodingKeys: String, CodingKey {
         case wheelchair, bicycle, seat, id
