@@ -2,7 +2,7 @@
 //  BusViewApp.swift
 //  BusView
 //
-//  Created by Catherine Megregian on 06/11/2024.
+//  Created by Rob Wilson on 06/11/2024.
 //
 
 import SwiftUI
