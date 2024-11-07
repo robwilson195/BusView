@@ -9,7 +9,7 @@ import Foundation
 
 // MARK: - Trip
 struct Trip: Codable, Sendable {
-    let route: [Route]
+    let route: [Stop]
     let vehicle: Vehicle
     let description: TripDescription
 }
@@ -33,7 +33,7 @@ struct TripDescription: Codable, Sendable {
 }
 
 // MARK: - Route
-struct Route: Codable, Sendable, Identifiable {
+struct Stop: Codable, Sendable, Identifiable, Hashable {
     let id: Int
     let departure, arrival: Arrival
     let location: Location
@@ -52,14 +52,14 @@ struct Route: Codable, Sendable, Identifiable {
 }
 
 // MARK: - Arrival
-struct Arrival: Codable, Sendable {
+struct Arrival: Codable, Sendable, Hashable {
     let scheduled: Date
     let actual: Date?
     let estimated: Date?
 }
 
 // MARK: - Location
-struct Location: Codable, Sendable {
+struct Location: Codable, Sendable, Hashable {
     let id: Int
     let name, regionName: String
     let detailedName: String
@@ -82,7 +82,7 @@ struct Location: Codable, Sendable {
 }
 
 // MARK: - Zone
-struct Coordinate: Codable, Sendable {
+struct Coordinate: Codable, Sendable, Hashable {
     let latitude, longitude: Double
 }
 
