@@ -33,7 +33,7 @@ struct TripDescription: Codable, Sendable {
 }
 
 // MARK: - Route
-struct Route: Codable, Sendable {
+struct Route: Codable, Sendable, Identifiable {
     let id: Int
     let departure, arrival: Arrival
     let location: Location

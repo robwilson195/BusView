@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import MapKit
 
 struct TripView: View {
     @EnvironmentObject var viewModel: TripViewModel
@@ -18,8 +19,13 @@ struct TripView: View {
             case .error(let error):
                 Text("\(error): \(error.localizedDescription)")
             case .loaded(let activeTrip):
-                VStack {
-                    Text("The next bus leaves at \(activeTrip.route.first!.departure.scheduled.formatted(date: .omitted, time: .shortened))")
+                Map {
+                    ForEach(activeTrip.route) { stop in
+                        Marker(
+                            "\(stop.location.name)",
+                            systemImage: "signpost.left.fill",
+                            coordinate: CLLocationCoordinate2D(latitude: stop.location.lat, longitude: stop.location.lon))
+                    }
                 }
             }
         }
