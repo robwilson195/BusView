@@ -7,32 +7,16 @@
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "25E4C4B2-D6C9-488C-A92E-8A982486C3CD"
-            shouldBeEnabled = "Yes"
+            uuid = "1F63B1C2-3488-4935-A7C7-14BF07142315"
+            shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
-            filePath = "BusView/Service/RouteService.swift"
+            filePath = "BusView/Modules/Trip/TripViewModel.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "30"
-            endingLineNumber = "30"
-            landmarkName = "getQuotes()"
-            landmarkType = "7">
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            uuid = "2A5397F8-67E0-4C84-B05C-C25D136BBA07"
-            shouldBeEnabled = "Yes"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "BusView/Service/RouteService.swift"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "42"
-            endingLineNumber = "42"
-            landmarkName = "getTrip(id:)"
+            startingLineNumber = "38"
+            endingLineNumber = "38"
+            landmarkName = "onViewAppear()"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>

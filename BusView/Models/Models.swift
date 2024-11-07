@@ -61,24 +61,20 @@ struct Arrival: Codable, Sendable {
 // MARK: - Location
 struct Location: Codable, Sendable {
     let id: Int
-    let name, regionName, code, codeDetail: String
+    let name, regionName: String
     let detailedName: String
     let lon, lat: Double
     let atcoCode: String
     let zone: [Coordinate]
-    let heading, areaID: Int
     let googlePlaceID, direction, localName: String?
 
     enum CodingKeys: String, CodingKey {
         case id, name
         case regionName = "region_name"
-        case code
-        case codeDetail = "code_detail"
         case detailedName = "detailed_name"
         case lon, lat
         case atcoCode = "atco_code"
-        case zone, heading
-        case areaID = "area_id"
+        case zone
         case googlePlaceID = "google_place_id"
         case direction
         case localName = "local_name"

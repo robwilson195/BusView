@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct ContentView: View {
+struct DebugView: View {
     var service = RouteService()
     @State var quotesStatus = "Processing quotes..."
     @State var tripStatus = ""
@@ -43,5 +43,5 @@ struct ContentView: View {
 }
 
 #Preview {
-    ContentView()
+    DebugView()
 }
