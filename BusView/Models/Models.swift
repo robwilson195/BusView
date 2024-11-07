@@ -9,7 +9,7 @@ import Foundation
 
 // MARK: - Trip
 struct Trip: Codable, Sendable {
-    let route: [Stop]
+    var route: [Stop]
     let vehicle: Vehicle
     let description: TripDescription
 }
@@ -35,7 +35,7 @@ struct TripDescription: Codable, Sendable {
 // MARK: - Route
 struct Stop: Codable, Sendable, Identifiable, Hashable {
     let id: Int
-    let departure, arrival: Arrival
+    let departure, arrival: Timings
     let location: Location
     let allowBoarding, allowDropOff: Bool
     let bookingCutOffMins: Int
@@ -52,7 +52,7 @@ struct Stop: Codable, Sendable, Identifiable, Hashable {
 }
 
 // MARK: - Arrival
-struct Arrival: Codable, Sendable, Hashable {
+struct Timings: Codable, Sendable, Hashable {
     let scheduled: Date
     let actual: Date?
     let estimated: Date?
@@ -150,7 +150,7 @@ struct Leg: Codable, Sendable {
     let type: LegType
     let tripUid: String
     let origin, destination: Destination
-    let departure, arrival: Arrival
+    let departure, arrival: Timings
     let description: LegDescription
     let tripType: TripType
 

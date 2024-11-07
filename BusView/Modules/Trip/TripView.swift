@@ -37,7 +37,45 @@ struct TripView: View {
                                                                              .annotationTitles(.hidden)
                     }
                 }
-                VStack {
+                VStack() {
+                    HStack(alignment: .top) {
+                        VStack {
+                            Text("Departs: \(activeTrip.route.first!.departure.scheduled.formatted(date: .omitted, time: .shortened))")
+                            HStack(spacing: 5) {
+                                Button("< Previous") {
+                                    Task {
+                                        await viewModel.onPreviousTapped()
+                                    }
+                                }
+                                Divider()
+                                    .frame(maxHeight: 14)
+                                Button("Next >") {
+                                    Task {
+                                        await viewModel.onNextTapped()
+                                    }
+                                }
+                            }
+                        }
+                        .padding(4)
+                        .background {
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(.white.shadow(.drop(color: .black, radius: 4)))
+                        }
+                        Spacer()
+                        Button(action: {
+                            Task {
+                                await viewModel.onRefreshTapped()
+                            }
+                        }) {
+                            Label("", systemImage: "arrow.clockwise")
+                        }
+                        .padding(4)
+                        .background {
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(.white.shadow(.drop(color: .black, radius: 4)))
+                        }
+                    }
+                    .padding(20)
                     Spacer()
                     if let selectedStop {
                         VStack {
