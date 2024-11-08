@@ -20,7 +20,7 @@ struct TripView: View {
                     .scaleEffect(3)
             case .error(let error):
                 Text("\(error): \(error.localizedDescription)")
-            case .loaded(let activeTrip):
+            case let .loaded(activeTrip, activeQuote):
                 Map(interactionModes: [.pitch, .pan, .zoom], selection: $selectedStop) {
                     ForEach(activeTrip.route) { stop in
                         Marker(
@@ -37,30 +37,10 @@ struct TripView: View {
                                                                              .annotationTitles(.hidden)
                     }
                 }
+                
                 VStack() {
                     HStack(alignment: .top) {
-                        VStack {
-                            Text("Departs: \(activeTrip.route.first!.departure.scheduled.formatted(date: .omitted, time: .shortened))")
-                            HStack(spacing: 5) {
-                                Button("< Previous") {
-                                    Task {
-                                        await viewModel.onPreviousTapped()
-                                    }
-                                }
-                                Divider()
-                                    .frame(maxHeight: 14)
-                                Button("Next >") {
-                                    Task {
-                                        await viewModel.onNextTapped()
-                                    }
-                                }
-                            }
-                        }
-                        .padding(4)
-                        .background {
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(.white.shadow(.drop(color: .black, radius: 4)))
-                        }
+                        journeyOverlayView(activeTrip: activeTrip, activeQuote: activeQuote)
                         Spacer()
                         Button(action: {
                             Task {
@@ -83,11 +63,9 @@ struct TripView: View {
                         }
                         .frame(maxWidth: .infinity)
                         .background(.white)
-                        
+                        .animation(.easeInOut, value: selectedStop)
                     }
                 }
-                .animation(.easeInOut, value: selectedStop)
-                
             }
         }
         .navigationTitle(pageTitle)
@@ -97,17 +75,120 @@ struct TripView: View {
         }
     }
     
+    func journeyOverlayView(activeTrip: Trip, activeQuote: Quote) -> some View {
+        return VStack(alignment: .leading) {
+            Text(activeTrip.route.first!.timingText(timingType: .departing))
+                .font(.headline)
+            Text(activeTrip.route.last!.timingText(timingType: .arriving))
+                .font(.headline)
+            if !activeTrip.alreadyLeft {
+                availabilityTextView(quote: activeQuote)
+            }
+            HStack(spacing: 5) {
+                Button("< Previous") {
+                    Task {
+                        await viewModel.onPreviousTapped()
+                    }
+                }
+                Divider()
+                    .frame(maxHeight: 14)
+                Button("Next >") {
+                    Task {
+                        await viewModel.onNextTapped()
+                    }
+                }
+            }
+        }
+        .padding(8)
+        .background {
+            RoundedRectangle(cornerRadius: 6)
+                .fill(.white.shadow(.drop(color: .black, radius: 4)))
+        }
+    }
+    
+    func availabilityTextView(quote: Quote) -> some View {
+        let seats = quote.availability.seat
+        
+        switch seats {
+        case 0: return Text("No seats available")
+                .foregroundStyle(.red)
+                .font(.footnote)
+        case 1...5:
+            return Text("Only ^[\(seats) seats](inflect: true) available.")
+                .foregroundStyle(.yellow)
+                .font(.footnote)
+        case 6...10:
+            return Text("^[\(seats) seats](inflect: true) available.")
+                .foregroundStyle(.yellow)
+                .font(.footnote)
+        case 11...20:
+            return Text("^[\(seats) seats](inflect: true) available.")
+                .font(.footnote)
+        default:
+            return Text("^[\(seats) seats](inflect: true) available.")
+                .foregroundStyle(Color.emberDark)
+                .font(.footnote)
+        }
+    }
+    
     var pageTitle: String {
         switch viewModel.viewState {
         case .loading: return "Loading..."
-        case .loaded(let trip):
-            guard !trip.route.isEmpty else { fallthrough }
+        case .loaded(let trip, _):
+            guard !trip.route.isEmpty else { return "" }
             return "\(trip.route.first!.location.name) - \(trip.route.last!.location.name)"
         case .error: return "Error"
-        default: return ""
         }
     }
 }
+
+extension Trip {
+    var alreadyLeft: Bool {
+        route.first?.departure.actual != nil
+    }
+}
+
+extension Stop {
+    enum TimingType {
+        case departing, arriving
+        var futureTensePrefix: String {
+            switch self {
+            case .departing:
+                "Departing at "
+            case .arriving:
+                "Arriving at "
+            }
+        }
+        var pastTensePrefix: String {
+            switch self {
+            case .departing:
+                "Departed at "
+            case .arriving:
+                "Arrived at "
+            }
+        }
+        var stopKeyPath: KeyPath<Stop, Timings> {
+            switch self {
+            case .departing:
+                \.departure
+            case .arriving:
+                \.arrival
+            }
+        }
+    }
+    
+    func timingText(timingType: TimingType) -> String {
+        let text = self[keyPath: timingType.stopKeyPath].actual == nil ? timingType.futureTensePrefix : timingType.pastTensePrefix
+        if let actual = self[keyPath: timingType.stopKeyPath].actual {
+            return text.appending(actual.shortenedTime())
+        } else if let estimated = self[keyPath: timingType.stopKeyPath].estimated {
+            return text.appending(estimated.shortenedTime())
+        } else {
+            return text.appending(self[keyPath: timingType.stopKeyPath].scheduled.shortenedTime())
+        }
+    }
+}
+
 
 
 struct BusView: View {
@@ -129,4 +210,11 @@ struct BusView: View {
 #Preview {
     TripView()
         .environmentObject(TripViewModel(routeService: RouteService()))
+}
+
+
+extension Date {
+    func shortenedTime() -> String {
+        formatted(date: .omitted, time: .shortened)
+    }
 }

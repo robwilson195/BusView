@@ -30,7 +30,7 @@ struct DebugView: View {
                 let tripId = response.quotes.last!.legs.first!.tripUid
                 tripStatus = "Processing trip..."
                 do {
-                    let trip = try await service.getTrip(id: tripId)
+                    let _ = try await service.getTrip(id: tripId)
                     tripStatus = "Trip result success!"
                 } catch {
                     tripStatus = error.localizedDescription

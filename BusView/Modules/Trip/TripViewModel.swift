@@ -10,12 +10,11 @@ import Foundation
 enum TripViewState {
     case loading
     case error(Error)
-    case loaded(activeTrip: Trip)
+    case loaded(activeTrip: Trip, activeQuote: Quote)
 }
 
 enum ProcessingError: Error {
-    case noMoreTripsToday
-    case noEarlierTrips
+    case noTrips
     case generic
 }
 
@@ -32,35 +31,53 @@ class TripViewModel: ObservableObject {
     @MainActor
     func onViewAppear() async {
         do {
-            let quotesResponse = try await routeService.getQuotes()
-            cachedQuotes = quotesResponse
-            guard let soonestLeg = quotesResponse.soonestLeg(after: Date.now) else {
-                throw ProcessingError.noMoreTripsToday
-            }
-            let scheduledDeparture = soonestLeg.departure.scheduled
-            let scheduledArrival = soonestLeg.arrival.scheduled
-            var trip = try await routeService.getTrip(id: soonestLeg.tripUid)
-            trip.trimStops(before: scheduledDeparture, after: scheduledArrival)
-            viewState = .loaded(activeTrip: trip)
+            try await refreshQuotes()
+            let (quote, trip) = try await firstQuoteWithTrimmedTrip(.after, .now)
+            viewState = .loaded(activeTrip: trip, activeQuote: quote)
         } catch {
             viewState = .error(error)
         }
     }
     
+    private func refreshQuotes() async throws {
+        do  {
+            cachedQuotes = try await routeService.getQuotes()
+        }
+    }
+    
+    private func firstQuoteWithTrimmedTrip(_ context: DateContext, _ date: Date) async throws -> (Quote, Trip) {
+        let quote: Quote? = {
+            switch context {
+            case .after:
+                return cachedQuotes?.soonestQuote(after: date)
+            case .before:
+                return cachedQuotes?.mostRecentQuote(before: date)
+            case .at:
+                return cachedQuotes?.quoteDeparting(at: date)
+            }
+        }()
+        
+        guard let quote, let leg = quote.legs.first else {
+            throw ProcessingError.noTrips
+        }
+        
+        let scheduledDeparture = leg.departure.scheduled
+        let scheduledArrival = leg.arrival.scheduled
+        var trip = try await routeService.getTrip(id: leg.tripUid)
+        trip.trimStops(before: scheduledDeparture, after: scheduledArrival)
+        return (quote, trip)
+    }
+    
     @MainActor
     func onPreviousTapped() async {
         do {
-            guard case .loaded(let trip) = viewState,
-                  let cachedQuotes,
-                  let currentDeparture = trip.route.first?.departure.scheduled,
-                  let previousLeg = cachedQuotes.mostRecentLeg(before: currentDeparture) else {
-                throw ProcessingError.noEarlierTrips
+            guard case let .loaded(_, quote) = viewState,
+            let currentDeparture = quote.legs.first?.departure.scheduled else {
+                throw ProcessingError.generic
             }
-            let scheduledDeparture = previousLeg.departure.scheduled
-            let scheduledArrival = previousLeg.arrival.scheduled
-            var previousTrip = try await routeService.getTrip(id: previousLeg.tripUid)
-            previousTrip.trimStops(before: scheduledDeparture, after: scheduledArrival)
-            viewState = .loaded(activeTrip: previousTrip)
+            try await refreshQuotes()
+            let (olderQuote, olderTrip) = try await firstQuoteWithTrimmedTrip(.before, currentDeparture)
+            viewState = .loaded(activeTrip: olderTrip, activeQuote: olderQuote)
         } catch {
             viewState = .error(error)
         }
@@ -69,17 +86,13 @@ class TripViewModel: ObservableObject {
     @MainActor
     func onNextTapped() async {
         do {
-            guard case .loaded(let trip) = viewState,
-                  let cachedQuotes,
-                  let currentDeparture = trip.route.first?.departure.scheduled,
-                  let nextLeg = cachedQuotes.soonestLeg(after: currentDeparture) else {
-                throw ProcessingError.noMoreTripsToday
+            guard case let .loaded(_, quote) = viewState,
+            let currentDeparture = quote.legs.first?.departure.scheduled else {
+                throw ProcessingError.generic
             }
-            let scheduledDeparture = nextLeg.departure.scheduled
-            let scheduledArrival = nextLeg.arrival.scheduled
-            var nextTrip = try await routeService.getTrip(id: nextLeg.tripUid)
-            nextTrip.trimStops(before: scheduledDeparture, after: scheduledArrival)
-            viewState = .loaded(activeTrip: nextTrip)
+            try await refreshQuotes()
+            let (nextQuote, nextTrip) = try await firstQuoteWithTrimmedTrip(.after, currentDeparture)
+            viewState = .loaded(activeTrip: nextTrip, activeQuote: nextQuote)
         } catch {
             viewState = .error(error)
         }
@@ -88,15 +101,14 @@ class TripViewModel: ObservableObject {
     @MainActor
     func onRefreshTapped() async {
         do {
-            guard case .loaded(let currentTrip) = viewState,
-                  !currentTrip.route.isEmpty else {
+            guard case let .loaded(_, quote) = viewState,
+                  let leg = quote.legs.first else {
                 throw ProcessingError.generic
             }
-            let scheduledDeparture = currentTrip.route.first!.departure.scheduled
-            let scheduledArrival = currentTrip.route.last!.arrival.scheduled
-            var refreshedTrip = try await routeService.refreshRecentTrip()
-            refreshedTrip.trimStops(before: scheduledDeparture, after: scheduledArrival)
-            viewState = .loaded(activeTrip: refreshedTrip)
+            
+            try await refreshQuotes()
+            let (refreshedQuote, refreshedTrip) = try await firstQuoteWithTrimmedTrip(.at, leg.departure.scheduled)
+            viewState = .loaded(activeTrip: refreshedTrip, activeQuote: refreshedQuote)
         } catch {
             viewState = .error(error)
         }
@@ -105,21 +117,27 @@ class TripViewModel: ObservableObject {
 
 
 extension QuoteResponse {
-    func soonestLeg(after date: Date) -> Leg? {
-        let firstLegs = quotes.map(\.legs.first)
-        let departureTimes = firstLegs.map { $0?.departure.scheduled }
+    func soonestQuote(after date: Date) -> Quote? {
+        let departureTimes = quotes.map(\.legs.first?.departure.scheduled)
         for (index, departureTime) in departureTimes.enumerated() {
-            if departureTime ?? .distantPast > date { return firstLegs[index] }
+            if departureTime ?? .distantPast > date { return quotes[index] }
         }
         return nil
     }
     
-    func mostRecentLeg(before date: Date) -> Leg? {
-        let firstLegs = quotes.map(\.legs.first)
-        let flipped = Array(firstLegs.reversed())
-        let departureTimes = flipped.map { $0?.departure.scheduled }
+    func mostRecentQuote(before date: Date) -> Quote? {
+        let flippedQuotes = Array(quotes.reversed())
+        let departureTimes = flippedQuotes.map(\.legs.first?.departure.scheduled)
         for (index, departureTime) in departureTimes.enumerated() {
-            if departureTime ?? .distantFuture < date { return flipped[index] }
+            if departureTime ?? .distantFuture < date { return flippedQuotes[index] }
+        }
+        return nil
+    }
+    
+    func quoteDeparting(at date: Date) -> Quote? {
+        let departureTimes = quotes.map(\.legs.first?.departure.scheduled)
+        for (index, departureTime) in departureTimes.enumerated() {
+            if departureTime ?? .distantPast == date { return quotes[index] }
         }
         return nil
     }
@@ -128,7 +146,13 @@ extension QuoteResponse {
 extension Trip {
     mutating func trimStops(before: Date, after: Date) {
         route = route.compactMap {
-            if $0.departure.scheduled >= before && $0.arrival.scheduled <= after { return $0 } else { return nil}
+            if $0.departure.scheduled >= before && $0.arrival.scheduled <= after { return $0 } else { return nil }
         }
+    }
+}
+
+extension TripViewModel {
+    enum DateContext {
+        case before, after, at
     }
 }
