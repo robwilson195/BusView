@@ -32,6 +32,8 @@ struct TripView: View {
                             }
                         }) {
                             Label("", systemImage: "arrow.clockwise")
+                                .font(.headline)
+                                .fontWeight(.bold)
                         }
                         .padding(4)
                         .background {
