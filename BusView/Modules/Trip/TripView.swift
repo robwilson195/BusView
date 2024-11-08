@@ -21,23 +21,7 @@ struct TripView: View {
             case .error(let error):
                 Text("\(error): \(error.localizedDescription)")
             case let .loaded(activeTrip, activeQuote):
-                Map(interactionModes: [.pitch, .pan, .zoom], selection: $selectedStop) {
-                    ForEach(activeTrip.route) { stop in
-                        Marker(
-                            "\(stop.location.name)",
-                            systemImage: "signpost.left.fill",
-                            coordinate: CLLocationCoordinate2D(latitude: stop.location.lat, longitude: stop.location.lon))
-                        .tag(stop)
-                    }
-                    if let vehicleGps = activeTrip.vehicle.gps {
-                        Annotation("Bus", coordinate: CLLocationCoordinate2D(latitude: vehicleGps.latitude,
-                                                                             longitude: vehicleGps.longitude)) {
-                            BusView(rotation: vehicleGps.heading)
-                        }
-                                                                             .annotationTitles(.hidden)
-                    }
-                }
-                
+                routeMap(activeTrip: activeTrip, activeQuote: activeQuote)
                 VStack() {
                     HStack(alignment: .top) {
                         journeyOverlayView(activeTrip: activeTrip, activeQuote: activeQuote)
@@ -57,14 +41,6 @@ struct TripView: View {
                     }
                     .padding(20)
                     Spacer()
-                    if let selectedStop {
-                        VStack {
-                            Text("\(selectedStop.location.name)")
-                        }
-                        .frame(maxWidth: .infinity)
-                        .background(.white)
-                        .animation(.easeInOut, value: selectedStop)
-                    }
                 }
             }
         }
@@ -75,6 +51,31 @@ struct TripView: View {
         }
     }
     
+    func routeMap(activeTrip: Trip, activeQuote: Quote) -> some View {
+        Map(interactionModes: [.pitch, .pan, .zoom], selection: $selectedStop) {
+            ForEach(activeTrip.route) { stop in
+                Marker(coordinate: CLLocationCoordinate2D(latitude: stop.location.lat, longitude: stop.location.lon)) {
+                    var markerText = "\(stop.location.name)"
+                    if stop.id == selectedStop?.id {
+                        let timingText: String = (stop == activeTrip.route.first || stop.departure.actual != nil)
+                        ? stop.timingText(timingType: .departing)
+                        : stop.timingText(timingType: .arriving)
+                        markerText.append(" - \(timingText)")
+                    }
+                    return Label(markerText, systemImage: "signpost.left.fill")
+                }
+                .tag(stop)
+            }
+            if let vehicleGps = activeTrip.vehicle.gps {
+                Annotation("Bus", coordinate: CLLocationCoordinate2D(latitude: vehicleGps.latitude,
+                                                                     longitude: vehicleGps.longitude)) {
+                    BusView(rotation: vehicleGps.heading)
+                }
+                                                                     .annotationTitles(.hidden)
+            }
+        }
+    }
+
     func journeyOverlayView(activeTrip: Trip, activeQuote: Quote) -> some View {
         return VStack(alignment: .leading) {
             Text(activeTrip.route.first!.timingText(timingType: .departing))
@@ -86,6 +87,7 @@ struct TripView: View {
             }
             HStack(spacing: 5) {
                 Button("< Previous") {
+                    selectedStop = nil
                     Task {
                         await viewModel.onPreviousTapped()
                     }
@@ -93,6 +95,7 @@ struct TripView: View {
                 Divider()
                     .frame(maxHeight: 14)
                 Button("Next >") {
+                    selectedStop = nil
                     Task {
                         await viewModel.onNextTapped()
                     }
@@ -113,15 +116,11 @@ struct TripView: View {
         case 0: return Text("No seats available")
                 .foregroundStyle(.red)
                 .font(.footnote)
-        case 1...5:
+        case 1...8:
             return Text("Only ^[\(seats) seats](inflect: true) available.")
                 .foregroundStyle(.yellow)
                 .font(.footnote)
-        case 6...10:
-            return Text("^[\(seats) seats](inflect: true) available.")
-                .foregroundStyle(.yellow)
-                .font(.footnote)
-        case 11...20:
+        case 9...20:
             return Text("^[\(seats) seats](inflect: true) available.")
                 .font(.footnote)
         default:
