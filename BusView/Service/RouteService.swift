@@ -10,7 +10,6 @@ import Foundation
 protocol RouteServicing {
     func getQuotes() async throws -> QuoteResponse
     func getTrip(id: String) async throws -> Trip
-    func refreshRecentTrip() async throws -> Trip
 }
 
 class RouteService: RouteServicing {
@@ -35,11 +34,6 @@ class RouteService: RouteServicing {
         let trip = try decoder.decode(Trip.self, from: data)
         recentTripId = id
         return trip
-    }
-    
-    func refreshRecentTrip() async throws -> Trip {
-        guard let recentTripId else { throw ServiceError.noRecentTripId }
-        return try await getTrip(id: recentTripId)
     }
 }
 
