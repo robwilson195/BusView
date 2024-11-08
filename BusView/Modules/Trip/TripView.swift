@@ -19,7 +19,16 @@ struct TripView: View {
                 ProgressView()
                     .scaleEffect(3)
             case .error(let error):
-                Text("\(error): \(error.localizedDescription)")
+                VStack(spacing: 20) {
+                    Text("There was an issue fetching quotes for this route.\nPlease try again.")
+                        .multilineTextAlignment(.center)
+                    Button("Retry") {
+                        Task {
+                            await viewModel.onViewAppear()
+                        }
+                    }
+                }
+                .padding(40)
             case let .loaded(activeTrip, activeQuote):
                 routeMap(activeTrip: activeTrip, activeQuote: activeQuote)
                 VStack() {
@@ -43,6 +52,9 @@ struct TripView: View {
                     }
                     .padding(20)
                     Spacer()
+                }
+                .alert(item: $viewModel.errorOverlayMessage) { message in
+                    Alert(title: Text("Oops"), message: Text(message))
                 }
             }
         }
@@ -217,5 +229,12 @@ struct BusView: View {
 extension Date {
     func shortenedTime() -> String {
         formatted(date: .omitted, time: .shortened)
+    }
+}
+
+extension String: Identifiable {
+    public typealias ID = Int
+    public var id: Int {
+        return hash
     }
 }

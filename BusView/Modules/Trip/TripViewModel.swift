@@ -21,6 +21,7 @@ enum ProcessingError: Error {
 class TripViewModel: ObservableObject {
     
     @Published var viewState: TripViewState = .loading
+    @Published var errorOverlayMessage: String?
     private let routeService: RouteServicing
     private var cachedQuotes: QuoteResponse?
     
@@ -30,14 +31,66 @@ class TripViewModel: ObservableObject {
     
     @MainActor
     func onViewAppear() async {
+        viewState = .loading
         do {
             try await refreshQuotes()
             let (quote, trip) = try await firstQuoteWithTrimmedTrip(.after, .now)
+            errorOverlayMessage = nil
             viewState = .loaded(activeTrip: trip, activeQuote: quote)
         } catch {
             viewState = .error(error)
         }
     }
+    
+    @MainActor
+    func onPreviousTapped() async {
+        do {
+            guard case let .loaded(_, quote) = viewState,
+            let currentDeparture = quote.legs.first?.departure.scheduled else {
+                throw ProcessingError.generic
+            }
+            try await refreshQuotes()
+            let (olderQuote, olderTrip) = try await firstQuoteWithTrimmedTrip(.before, currentDeparture)
+            errorOverlayMessage = nil
+            viewState = .loaded(activeTrip: olderTrip, activeQuote: olderQuote)
+        } catch {
+            errorOverlayMessage = "No previous trips available."
+        }
+    }
+    
+    @MainActor
+    func onNextTapped() async {
+        do {
+            guard case let .loaded(_, quote) = viewState,
+            let currentDeparture = quote.legs.first?.departure.scheduled else {
+                throw ProcessingError.generic
+            }
+            try await refreshQuotes()
+            let (nextQuote, nextTrip) = try await firstQuoteWithTrimmedTrip(.after, currentDeparture)
+            errorOverlayMessage = nil
+            viewState = .loaded(activeTrip: nextTrip, activeQuote: nextQuote)
+        } catch {
+            errorOverlayMessage = "No subsequent trips available."
+        }
+    }
+    
+    @MainActor
+    func onRefreshTapped() async {
+        do {
+            guard case let .loaded(_, quote) = viewState,
+                  let leg = quote.legs.first else {
+                throw ProcessingError.generic
+            }
+            
+            try await refreshQuotes()
+            let (refreshedQuote, refreshedTrip) = try await firstQuoteWithTrimmedTrip(.at, leg.departure.scheduled)
+            errorOverlayMessage = nil
+            viewState = .loaded(activeTrip: refreshedTrip, activeQuote: refreshedQuote)
+        } catch {
+            errorOverlayMessage = "There was an issue refreshing this route. Information may be out of date."
+        }
+    }
+    
     
     private func refreshQuotes() async throws {
         do  {
@@ -68,51 +121,6 @@ class TripViewModel: ObservableObject {
         return (quote, trip)
     }
     
-    @MainActor
-    func onPreviousTapped() async {
-        do {
-            guard case let .loaded(_, quote) = viewState,
-            let currentDeparture = quote.legs.first?.departure.scheduled else {
-                throw ProcessingError.generic
-            }
-            try await refreshQuotes()
-            let (olderQuote, olderTrip) = try await firstQuoteWithTrimmedTrip(.before, currentDeparture)
-            viewState = .loaded(activeTrip: olderTrip, activeQuote: olderQuote)
-        } catch {
-            viewState = .error(error)
-        }
-    }
-    
-    @MainActor
-    func onNextTapped() async {
-        do {
-            guard case let .loaded(_, quote) = viewState,
-            let currentDeparture = quote.legs.first?.departure.scheduled else {
-                throw ProcessingError.generic
-            }
-            try await refreshQuotes()
-            let (nextQuote, nextTrip) = try await firstQuoteWithTrimmedTrip(.after, currentDeparture)
-            viewState = .loaded(activeTrip: nextTrip, activeQuote: nextQuote)
-        } catch {
-            viewState = .error(error)
-        }
-    }
-    
-    @MainActor
-    func onRefreshTapped() async {
-        do {
-            guard case let .loaded(_, quote) = viewState,
-                  let leg = quote.legs.first else {
-                throw ProcessingError.generic
-            }
-            
-            try await refreshQuotes()
-            let (refreshedQuote, refreshedTrip) = try await firstQuoteWithTrimmedTrip(.at, leg.departure.scheduled)
-            viewState = .loaded(activeTrip: refreshedTrip, activeQuote: refreshedQuote)
-        } catch {
-            viewState = .error(error)
-        }
-    }
 }
 
 
