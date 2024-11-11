@@ -83,7 +83,7 @@ struct TripView: View {
             if let vehicleGps = activeTrip.vehicle.gps {
                 Annotation("Bus", coordinate: CLLocationCoordinate2D(latitude: vehicleGps.latitude,
                                                                      longitude: vehicleGps.longitude)) {
-                    BusView(rotation: vehicleGps.heading)
+                    BusAnnotationView(rotation: vehicleGps.heading)
                 }
                                                                      .annotationTitles(.hidden)
             }

@@ -39,5 +39,4 @@ class RouteService: RouteServicing {
 
 enum ServiceError: Error {
     case invalidURL
-    case noRecentTripId
 }

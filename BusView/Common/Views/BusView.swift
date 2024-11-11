@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct BusView: View {
+struct BusAnnotationView: View {
     
     var rotation: Double
     var body: some View {
@@ -24,5 +24,5 @@ struct BusView: View {
 }
 
 #Preview {
-    BusView(rotation: 180)
+    BusAnnotationView(rotation: 180)
 }

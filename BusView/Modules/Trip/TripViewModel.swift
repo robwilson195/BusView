@@ -30,11 +30,11 @@ class TripViewModel: ObservableObject {
     }
     
     @MainActor
-    func onViewAppear() async {
+    func onViewAppear(time: Date = .now) async {
         viewState = .loading
         do {
             try await refreshQuotes()
-            let (quote, trip) = try await firstQuoteWithTrimmedTrip(.after, .now)
+            let (quote, trip) = try await firstQuoteWithTrimmedTrip(.after, time)
             errorOverlayMessage = nil
             viewState = .loaded(activeTrip: trip, activeQuote: quote)
         } catch {
