@@ -18,7 +18,7 @@ struct TripView: View {
             case .loading:
                 ProgressView()
                     .scaleEffect(3)
-            case .error(let error):
+            case .error:
                 VStack(spacing: 20) {
                     Text("There was an issue fetching quotes for this route.\nPlease try again.")
                         .multilineTextAlignment(.center)
@@ -155,86 +155,7 @@ struct TripView: View {
     }
 }
 
-extension Trip {
-    var alreadyLeft: Bool {
-        route.first?.departure.actual != nil
-    }
-}
-
-extension Stop {
-    enum TimingType {
-        case departing, arriving
-        var futureTensePrefix: String {
-            switch self {
-            case .departing:
-                "Departing at "
-            case .arriving:
-                "Arriving at "
-            }
-        }
-        var pastTensePrefix: String {
-            switch self {
-            case .departing:
-                "Departed at "
-            case .arriving:
-                "Arrived at "
-            }
-        }
-        var stopKeyPath: KeyPath<Stop, Timings> {
-            switch self {
-            case .departing:
-                \.departure
-            case .arriving:
-                \.arrival
-            }
-        }
-    }
-    
-    func timingText(timingType: TimingType) -> String {
-        let text = self[keyPath: timingType.stopKeyPath].actual == nil ? timingType.futureTensePrefix : timingType.pastTensePrefix
-        if let actual = self[keyPath: timingType.stopKeyPath].actual {
-            return text.appending(actual.shortenedTime())
-        } else if let estimated = self[keyPath: timingType.stopKeyPath].estimated {
-            return text.appending(estimated.shortenedTime())
-        } else {
-            return text.appending(self[keyPath: timingType.stopKeyPath].scheduled.shortenedTime())
-        }
-    }
-}
-
-
-
-struct BusView: View {
-    
-    var rotation: Double
-    var body: some View {
-        RoundedRectangle(cornerRadius: 4)
-            .frame(width: 15, height: 35)
-            .overlay {
-                RoundedRectangle(cornerRadius: 2)
-                    .frame(width: 12, height: 6)
-                    .foregroundStyle(Color.emberMedium)
-                    .offset(y: -13)
-            }
-            .rotationEffect(.degrees(rotation))
-    }
-}
-
 #Preview {
     TripView()
         .environmentObject(TripViewModel(routeService: RouteService()))
-}
-
-
-extension Date {
-    func shortenedTime() -> String {
-        formatted(date: .omitted, time: .shortened)
-    }
-}
-
-extension String: Identifiable {
-    public typealias ID = Int
-    public var id: Int {
-        return hash
-    }
 }

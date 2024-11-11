@@ -13,7 +13,7 @@ enum TripViewState {
     case loaded(activeTrip: Trip, activeQuote: Quote)
 }
 
-enum ProcessingError: Error {
+enum TripProcessingError: Error {
     case noTrips
     case generic
 }
@@ -46,8 +46,8 @@ class TripViewModel: ObservableObject {
     func onPreviousTapped() async {
         do {
             guard case let .loaded(_, quote) = viewState,
-            let currentDeparture = quote.legs.first?.departure.scheduled else {
-                throw ProcessingError.generic
+                  let currentDeparture = quote.legs.first?.departure.scheduled else {
+                throw TripProcessingError.generic
             }
             try await refreshQuotes()
             let (olderQuote, olderTrip) = try await firstQuoteWithTrimmedTrip(.before, currentDeparture)
@@ -62,8 +62,8 @@ class TripViewModel: ObservableObject {
     func onNextTapped() async {
         do {
             guard case let .loaded(_, quote) = viewState,
-            let currentDeparture = quote.legs.first?.departure.scheduled else {
-                throw ProcessingError.generic
+                  let currentDeparture = quote.legs.first?.departure.scheduled else {
+                throw TripProcessingError.generic
             }
             try await refreshQuotes()
             let (nextQuote, nextTrip) = try await firstQuoteWithTrimmedTrip(.after, currentDeparture)
@@ -79,7 +79,7 @@ class TripViewModel: ObservableObject {
         do {
             guard case let .loaded(_, quote) = viewState,
                   let leg = quote.legs.first else {
-                throw ProcessingError.generic
+                throw TripProcessingError.generic
             }
             
             try await refreshQuotes()
@@ -97,6 +97,11 @@ class TripViewModel: ObservableObject {
             cachedQuotes = try await routeService.getQuotes()
         }
     }
+}
+extension TripViewModel {
+    enum DateContext {
+        case before, after, at
+    }
     
     private func firstQuoteWithTrimmedTrip(_ context: DateContext, _ date: Date) async throws -> (Quote, Trip) {
         let quote: Quote? = {
@@ -111,7 +116,7 @@ class TripViewModel: ObservableObject {
         }()
         
         guard let quote, let leg = quote.legs.first else {
-            throw ProcessingError.noTrips
+            throw TripProcessingError.noTrips
         }
         
         let scheduledDeparture = leg.departure.scheduled
@@ -123,44 +128,3 @@ class TripViewModel: ObservableObject {
     
 }
 
-
-extension QuoteResponse {
-    func soonestQuote(after date: Date) -> Quote? {
-        let departureTimes = quotes.map(\.legs.first?.departure.scheduled)
-        for (index, departureTime) in departureTimes.enumerated() {
-            if departureTime ?? .distantPast > date { return quotes[index] }
-        }
-        return nil
-    }
-    
-    func mostRecentQuote(before date: Date) -> Quote? {
-        let flippedQuotes = Array(quotes.reversed())
-        let departureTimes = flippedQuotes.map(\.legs.first?.departure.scheduled)
-        for (index, departureTime) in departureTimes.enumerated() {
-            if departureTime ?? .distantFuture < date { return flippedQuotes[index] }
-        }
-        return nil
-    }
-    
-    func quoteDeparting(at date: Date) -> Quote? {
-        let departureTimes = quotes.map(\.legs.first?.departure.scheduled)
-        for (index, departureTime) in departureTimes.enumerated() {
-            if departureTime ?? .distantPast == date { return quotes[index] }
-        }
-        return nil
-    }
-}
-
-extension Trip {
-    mutating func trimStops(before: Date, after: Date) {
-        route = route.compactMap {
-            if $0.departure.scheduled >= before && $0.arrival.scheduled <= after { return $0 } else { return nil }
-        }
-    }
-}
-
-extension TripViewModel {
-    enum DateContext {
-        case before, after, at
-    }
-}
